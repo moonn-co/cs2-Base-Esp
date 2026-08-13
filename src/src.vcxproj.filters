@@ -1,0 +1,176 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="cfg">
+      <UniqueIdentifier>{f1d1a1a1-1111-1111-1111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="draw">
+      <UniqueIdentifier>{f2d2a2a2-2222-2222-2222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game">
+      <UniqueIdentifier>{f3d3a3a3-3333-3333-3333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs">
+      <UniqueIdentifier>{f4d4a4a4-4444-4444-4444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mem">
+      <UniqueIdentifier>{f5d5a5a5-5555-5555-5555-555555555555}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{f6d6a6a6-6666-6666-6666-666666666666}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="shared_definitions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cs2_esp_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="draw\directx_renderer.cpp">
+      <Filter>draw</Filter>
+    </ClCompile>
+    <ClCompile Include="draw\dx11_overlay.cpp">
+      <Filter>draw</Filter>
+    </ClCompile>
+    <ClCompile Include="draw\visual_esp.cpp">
+      <Filter>draw</Filter>
+    </ClCompile>
+    <ClCompile Include="game\cache\entity_cache.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="game\cs2_game_engine.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="game\entities\cs2_player.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="game\entities\cs2_weapon.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="game\entities\game_state.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\imgui\backends\imgui_impl_dx11.cpp">
+      <Filter>libs</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\imgui\backends\imgui_impl_win32.cpp">
+      <Filter>libs</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\imgui\imgui.cpp">
+      <Filter>libs</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\imgui\imgui_draw.cpp">
+      <Filter>libs</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\imgui\imgui_tables.cpp">
+      <Filter>libs</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\imgui\imgui_widgets.cpp">
+      <Filter>libs</Filter>
+    </ClCompile>
+    <ClCompile Include="mem\process_memory.cpp">
+      <Filter>mem</Filter>
+    </ClCompile>
+    <ClCompile Include="mem\signature_scanner.cpp">
+      <Filter>mem</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="shared_definitions.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cfg\active_configuration.hpp">
+      <Filter>cfg</Filter>
+    </ClInclude>
+    <ClInclude Include="draw\directx_renderer.hpp">
+      <Filter>draw</Filter>
+    </ClInclude>
+    <ClInclude Include="draw\dx11_overlay.hpp">
+      <Filter>draw</Filter>
+    </ClInclude>
+    <ClInclude Include="draw\visual_esp.hpp">
+      <Filter>draw</Filter>
+    </ClInclude>
+    <ClInclude Include="game\cache\entity_cache.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\cs2_game_engine.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\entities\cs2_player.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\entities\cs2_weapon.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\entities\game_state.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\entities\player_bones.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\types\rgba_color.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\types\vector2d.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\types\vector3d.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\types\view_matrix.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="game\types\weapon_ids.hpp">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\backends\imgui_impl_dx11.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\backends\imgui_impl_win32.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\imconfig.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\imgui.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\imgui_internal.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\imstb_rectpack.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\imstb_textedit.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\imgui\imstb_truetype.h">
+      <Filter>libs</Filter>
+    </ClInclude>
+    <ClInclude Include="mem\cs2_memory_offsets.hpp">
+      <Filter>mem</Filter>
+    </ClInclude>
+    <ClInclude Include="mem\process_memory.hpp">
+      <Filter>mem</Filter>
+    </ClInclude>
+    <ClInclude Include="mem\signature_scanner.hpp">
+      <Filter>mem</Filter>
+    </ClInclude>
+    <ClInclude Include="utils\debug_logger.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="utils\exception_handler.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
