@@ -1,8 +1,13 @@
 #pragma once
+
+#include <chrono>
+#include <mutex>
+#include <vector>
+
 #include "../entities/game_state.hpp"
 #include "../entities/cs2_player.hpp"
 
-using namespace std::chrono;
+inline constexpr int kMaxPlayers = 64;
 
 struct Snapshot {
 	Game game;
@@ -25,10 +30,11 @@ public:
 	static Snapshot CopySnapshot();
 
 	static bool Refresh();
+	static void Reset();
 private:
 	std::mutex mtx;
-	milliseconds duration{1};
-	steady_clock::time_point last{};
+	std::chrono::steady_clock::time_point last{};
+	bool has_local = false;
 private:
 	bool RefreshImpl();
 };

@@ -1,0 +1,51 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # windows-latest currently resolves to Windows Server 2025 + Visual Studio 2026,
+    # which is the only image shipping the v145 toolset the solution asks for.
+    # (windows-2022 has VS 2022 / v143 only and fails at the toolset check.)
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release]
+        platform: [x64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Configure (toolset sanity check)
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          & $vswhere -latest -products * -property installationVersion
+          & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+
+      - name: Build
+        run: >
+          msbuild Build.sln
+          /m
+          /nologo
+          /v:minimal
+          /p:Configuration=${{ matrix.configuration }}
+          /p:Platform=${{ matrix.platform }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs2-external-esp-${{ matrix.configuration }}-${{ matrix.platform }}
+          path: |
+            ${{ matrix.platform }}\${{ matrix.configuration }}\*.exe
+            ${{ matrix.platform }}\${{ matrix.configuration }}\*.pdb
+          if-no-files-found: error
+          retention-days: 14

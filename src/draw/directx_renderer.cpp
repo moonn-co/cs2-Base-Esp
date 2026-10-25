@@ -1,23 +1,28 @@
 #include "directx_renderer.hpp"
-#include "dx11_overlay.hpp"
 
+#include <chrono>
+#include <thread>
+
+#include "dx11_overlay.hpp"
 #include "../game/cs2_game_engine.hpp"
 #include "visual_esp.hpp"
+
+using namespace std::chrono_literals;
 
 bool Renderer::Init() {
     return GetInstance().InitImpl();
 }
 
 void Renderer::Thread() {
-    return GetInstance().ThreadImpl();
+    GetInstance().ThreadImpl();
 }
 
 void Renderer::Destroy() {
-    return GetInstance().DestroyImpl();
-}   
+    GetInstance().DestroyImpl();
+}
 
 bool Renderer::IsOpen() {
-    return false;
+    return GetInstance().isRunning.load() && Window::hwnd != nullptr;
 }
 
 bool Renderer::InitImpl() {
@@ -36,11 +41,16 @@ bool Renderer::InitImpl() {
         return false;
     }
 
-    Esp::Init();
+    if (!Esp::Init()) {
+        LOGF(FATAL, "Failed to initialize ESP renderer");
+        return false;
+    }
 
     Window::SetClickthrough(Window::hwnd, true);
 
-    SetForegroundWindow(Engine::GetProcess()->hwnd_);
+    auto process = Engine::GetProcess();
+    if (process && process->hwnd_)
+        SetForegroundWindow(process->hwnd_);
 
     LOGF(INFO, "Successfully initialized ESP renderer...");
     return true;
@@ -48,25 +58,50 @@ bool Renderer::InitImpl() {
 
 void Renderer::DestroyImpl() {
     isRunning = false;
+    Window::shouldRun = false;
 }
 
 void Renderer::ThreadImpl() {
-    while (isRunning) {
-        Render();
+    // The overlay is hidden while the game is in the background, so the loop
+    // parks instead of presenting an invisible frame at full speed.
+    while (isRunning.load()) {
+        // Polled on every iteration, regardless of which window owns focus.
+        HandleState();
 
-        if (this->isFocused && HandleState())
+        if (!isRunning.load())
+            break;
+
+        if (!HandleWindowOrder()) {
+            if (!isRunning.load())
+                break;
+
+            std::this_thread::sleep_for(10ms);
             continue;
+        }
 
-        HandleWindowOrder();
+        if (!overlay_visible) {
+            std::this_thread::sleep_for(100ms);
+            continue;
+        }
+
+        Render();
     }
 
     Window::DestroyImGui();
     Window::DestroyDevice();
     Window::DespawnWindow();
+
+    LOGF(INFO, "Renderer stopped");
 }
 
 void Renderer::Render() {
     Window::StartRender();
+
+    if (!Window::shouldRun)
+    {
+        isRunning = false;
+        return;
+    }
 
     Esp::Render();
 
@@ -74,12 +109,14 @@ void Renderer::Render() {
 }
 
 bool Renderer::HandleState() {
-    isRunning = Window::shouldRun;
+    // The quit key has to be polled on every iteration. The old version only
+    // checked it while the game window was focused, so END did nothing when the
+    // overlay or another window had focus.
+    if (GetAsyncKeyState(VK_END) & 0x8000)
+        isRunning = false;
 
-    bool pressed_end = (GetAsyncKeyState(VK_END) & 0x8000);
-
-    if (pressed_end)
-        this->isRunning = false;
+    if (!Window::shouldRun)
+        isRunning = false;
 
     return false;
 }
@@ -87,26 +124,33 @@ bool Renderer::HandleState() {
 bool Renderer::HandleWindowOrder() {
     auto p = Engine::GetProcess();
 
-    if (!p || (!p->hwnd_ && !p->UpdateHWND()))
+    if (!p)
         return false;
 
-    if (!IsWindow(p->hwnd_))
-        this->isRunning = false;
+    if (!p->hwnd_ && !p->UpdateHWND())
+        return false;
 
-    static bool overlay_visible = true;
-    auto foreground = GetForegroundWindow();
+    if (!IsWindow(p->hwnd_)) {
+        LOGF(INFO, "Game window is gone - closing the overlay");
+        isRunning = false;
+        return false;
+    }
+
+    const auto foreground = GetForegroundWindow();
     this->isFocused = (foreground == Window::hwnd || foreground == p->hwnd_);
 
-    if (!this->isFocused && overlay_visible) {
-        ShowWindow(Window::hwnd, SW_HIDE);
-        overlay_visible = false;
+    if (!this->isFocused) {
+        if (overlay_visible) {
+            ShowWindow(Window::hwnd, SW_HIDE);
+            overlay_visible = false;
+        }
+
         return true;
     }
 
-    if (!overlay_visible && this->isFocused) {  
+    if (!overlay_visible) {
         ShowWindow(Window::hwnd, SW_SHOW);
         overlay_visible = true;
-        return true;
     }
 
     static RECT last_rect = { 0, 0, 0, 0 };

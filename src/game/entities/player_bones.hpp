@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 #include "../types/vector3d.hpp"
 
-enum bone_index : DWORD {
+enum bone_index : uint32_t {
     origin = 0,
     pelvis = 1,
     spine_0 = 2,

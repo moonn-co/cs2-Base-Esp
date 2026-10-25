@@ -1,19 +1,32 @@
 #pragma once
 
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
 
 #include <windows.h>
-#include <memory>
-#include <thread>
-#include <vector>
+
+#include <algorithm>
+#include <atomic>
 #include <chrono>
-#include <string>
+#include <cmath>
+#include <cstdint>
 #include <format>
-#include <mutex>
 #include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
 #include "libs/imgui/imgui.h"
 

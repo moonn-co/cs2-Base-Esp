@@ -2,26 +2,57 @@
 #define _PPROCESS_HPP_
 
 #include <vector>
-#include <math.h>
+#include <cmath>
+
+// Keep <Windows.h> from defining the min/max macros: this header is pulled in
+// before shared_definitions.hpp in several translation units.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <string>
 #include <iostream>
-#include <Psapi.h> 
+#include <Psapi.h>
+#include "utils/debug_logger.hpp"
 
-typedef NTSTATUS(WINAPI* pNtReadVirtualMemory)(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead, PULONG NumberOfBytesRead);
-typedef NTSTATUS(WINAPI* pNtWriteVirtualMemory)(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToWrite, PULONG NumberOfBytesWritten);
+// NtReadVirtualMemory returns NTSTATUS (a LONG) and fills a ULONG.
+// The types are spelled out explicitly on purpose: NTSTATUS is declared in
+// <winternl.h>, which <Windows.h> does not pull in, so the previous typedef
+// failed to compile with MSVC (C4430/C2059) even though MinGW accepted it.
+typedef long(WINAPI* pNtReadVirtualMemory)(
+	void* ProcessHandle,
+	void* BaseAddress,
+	void* Buffer,
+	unsigned long NumberOfBytesToRead,
+	unsigned long* NumberOfBytesRead
+);
 
+// The project is read-only by design: only the read primitive is resolved here.
+// NtWriteVirtualMemory is intentionally not imported anymore.
 class pMemory {
 
 public:
-	pMemory() {
-		pfnNtReadVirtualMemory = (pNtReadVirtualMemory)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtReadVirtualMemory");
-		pfnNtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtWriteVirtualMemory");
+	static pMemory& Get()
+	{
+		static pMemory instance;
+		return instance;
 	}
 
-	pNtReadVirtualMemory pfnNtReadVirtualMemory;
-	pNtWriteVirtualMemory pfnNtWriteVirtualMemory;
+	bool valid() const { return pfnNtReadVirtualMemory != nullptr; }
+
+	pNtReadVirtualMemory pfnNtReadVirtualMemory = nullptr;
+
+private:
+	pMemory()
+	{
+		HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+		if (!ntdll)
+			return;
+
+		pfnNtReadVirtualMemory = reinterpret_cast<pNtReadVirtualMemory>(GetProcAddress(ntdll, "NtReadVirtualMemory"));
+	}
 };
 
 struct ProcessModule
@@ -32,10 +63,10 @@ struct ProcessModule
 class pProcess
 {
 public:
-	DWORD		  pid_; 
-	HANDLE		  handle_; 
-	HWND		  hwnd_; 
-	ProcessModule base_client_;
+	DWORD		  pid_ = 0;
+	HANDLE		  handle_ = nullptr;
+	HWND		  hwnd_ = nullptr;
+	ProcessModule base_client_{ 0, 0 };
 
 public:
 	bool AttachProcess(const char* process_name);
@@ -44,13 +75,11 @@ public:
 
 public:
 	ProcessModule GetModule(const char* module_name);
-	LPVOID		  Allocate(size_t size_in_bytes);
-	uintptr_t	  FindCodeCave(uint32_t length_in_bytes);
 	uintptr_t     FindSignature(std::vector<uint8_t> signature);
 	uintptr_t     FindSignature(ProcessModule target_module, std::vector<uint8_t> signature);
 
 	template<class T>
-	uintptr_t ReadOffsetFromSignature(std::vector<uint8_t> signature, uint8_t offset) 
+	uintptr_t ReadOffsetFromSignature(std::vector<uint8_t> signature, uint8_t offset)
 	{
 		uintptr_t pattern_address = this->FindSignature(signature);
 		if (!pattern_address)
@@ -62,51 +91,60 @@ public:
 
 	bool read_raw(uintptr_t address, void* buffer, size_t size)
 	{
-		SIZE_T bytesRead;
-		pMemory cMemory;
+		if (!handle_ || !address || !buffer || !size)
+			return false;
 
-		NTSTATUS status = cMemory.pfnNtReadVirtualMemory(this->handle_, (PVOID)(address), buffer, static_cast<ULONG>(size), reinterpret_cast<PULONG>(&bytesRead));
-	
-		return status == 0x00000000 || bytesRead == size;
-	}
+		auto& memory = pMemory::Get();
+		if (!memory.valid())
+			return false;
 
-	template<class T>
-	void write(uintptr_t address, T value)
-	{
-		pMemory cMemory;
-		cMemory.pfnNtWriteVirtualMemory(handle_, (void*)address, &value, sizeof(T), 0);
+		unsigned long bytes_read = 0;
+		const long status = memory.pfnNtReadVirtualMemory(
+			handle_,
+			reinterpret_cast<PVOID>(address),
+			buffer,
+			static_cast<unsigned long>(size),
+			&bytes_read
+		);
+
+		return status == 0 && bytes_read == static_cast<unsigned long>(size);
 	}
 
 	template<class T>
 	T read(uintptr_t address)
 	{
+		// Value-initialised buffer: a failed read yields a zeroed value instead of garbage.
 		T buffer{};
-		pMemory cMemory;
-
-		cMemory.pfnNtReadVirtualMemory(handle_, (void*)address, &buffer, sizeof(T), 0);
+		this->read_raw(address, &buffer, sizeof(T));
 		return buffer;
-	}
-
-	void write_bytes(uintptr_t addr, std::vector<uint8_t> patch)
-	{
-		pMemory cMemory;
-		cMemory.pfnNtWriteVirtualMemory(handle_, (void*)addr, &patch[0], static_cast<ULONG>(patch.size()), 0);
 	}
 
 	uintptr_t read_multi_address(uintptr_t ptr, std::vector<uintptr_t> offsets)
 	{
 		uintptr_t buffer = ptr;
-		for (int i = 0; i < offsets.size(); i++)
-			buffer = this->read<uintptr_t>(buffer + offsets[i]);
+		for (const auto offset : offsets)
+		{
+			if (!buffer)
+				return 0;
+
+			buffer = this->read<uintptr_t>(buffer + offset);
+		}
 
 		return buffer;
 	}
 
 	template <typename T>
 	T read_multi(uintptr_t base, std::vector<uintptr_t> offsets) {
+		// An empty offset list used to underflow offsets.size() - 1 and loop over a huge range.
+		if (offsets.empty())
+			return T{};
+
 		uintptr_t buffer = base;
-		for (int i = 0; i < offsets.size() - 1; i++)
+		for (size_t i = 0; i + 1 < offsets.size(); i++)
 		{
+			if (!buffer)
+				return T{};
+
 			buffer = this->read<uintptr_t>(buffer + offsets[i]);
 		}
 		return this->read<T>(buffer + offsets.back());

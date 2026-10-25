@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 class Renderer {
 public:
     ~Renderer() = default;
@@ -14,7 +16,7 @@ public:
 
     static bool IsOpen();
 private:
-    Renderer() {};
+    Renderer() = default;
 
     static Renderer& GetInstance()
     {
@@ -30,6 +32,7 @@ private:
     bool HandleState();
     bool HandleWindowOrder();
 private:
-    bool isRunning = true;
+    std::atomic<bool> isRunning{ true };
     bool isFocused = false;
+    bool overlay_visible = true;
 };

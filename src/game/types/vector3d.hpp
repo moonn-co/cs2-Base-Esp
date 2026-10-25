@@ -3,52 +3,55 @@
 #include <cmath>
 #include <limits>
 
+// The project is built with MSVC, but keeping the hint portable costs nothing
+// and lets the geometry headers be syntax-checked with other compilers.
+#if defined(_MSC_VER)
+#define CS2_FORCEINLINE __forceinline
+#else
+#define CS2_FORCEINLINE inline
+#endif
+
 class Vec3_t {
 public:
 	float x, y, z;
 public:
-	__forceinline Vec3_t() : x{}, y{}, z{} {}
-	__forceinline Vec3_t(float x, float y, float z) : x{ x }, y{ y }, z{ z } {}
+	CS2_FORCEINLINE Vec3_t() : x{}, y{}, z{} {}
+	CS2_FORCEINLINE Vec3_t(float x, float y, float z) : x{ x }, y{ y }, z{ z } {}
 
-	__forceinline float& at(const size_t index) {
+	CS2_FORCEINLINE float& at(const size_t index) {
 		return ((float*)this)[index];
 	}
-	__forceinline float& at(const size_t index) const {
+	CS2_FORCEINLINE float& at(const size_t index) const {
 		return ((float*)this)[index];
 	}
 
-	__forceinline float& operator( )(const size_t index) {
+	CS2_FORCEINLINE float& operator( )(const size_t index) {
 		return at(index);
 	}
-	__forceinline const float& operator( )(const size_t index) const {
+	CS2_FORCEINLINE const float& operator( )(const size_t index) const {
 		return at(index);
 	}
-	__forceinline float& operator[ ](const size_t index) {
+	CS2_FORCEINLINE float& operator[ ](const size_t index) {
 		return at(index);
 	}
-	__forceinline const float& operator[ ](const size_t index) const {
+	CS2_FORCEINLINE const float& operator[ ](const size_t index) const {
 		return at(index);
 	}
 
-	__forceinline bool operator==(const Vec3_t& v) const {
+	CS2_FORCEINLINE bool operator==(const Vec3_t& v) const {
 		return v.x == x && v.y == y && v.z == z;
 	}
-	__forceinline bool operator!=(const Vec3_t& v) const {
+	CS2_FORCEINLINE bool operator!=(const Vec3_t& v) const {
 		return v.x != x || v.y != y || v.z != z;
 	}
 
-	__forceinline Vec3_t& operator=(const Vec3_t& v) {
-		x = v.x;
-		y = v.y;
-		z = v.z;
-		return *this;
-	}
+	CS2_FORCEINLINE Vec3_t& operator=(const Vec3_t& v) = default;
 
-	__forceinline Vec3_t operator-() const {
+	CS2_FORCEINLINE Vec3_t operator-() const {
 		return Vec3_t{ -x, -y, -z };
 	}
 
-	__forceinline Vec3_t operator+(const Vec3_t& v) const {
+	CS2_FORCEINLINE Vec3_t operator+(const Vec3_t& v) const {
 		return {
 			x + v.x,
 			y + v.y,
@@ -56,7 +59,7 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t operator-(const Vec3_t& v) const {
+	CS2_FORCEINLINE Vec3_t operator-(const Vec3_t& v) const {
 		return {
 			x - v.x,
 			y - v.y,
@@ -64,7 +67,7 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t operator*(const Vec3_t& v) const {
+	CS2_FORCEINLINE Vec3_t operator*(const Vec3_t& v) const {
 		return {
 			x * v.x,
 			y * v.y,
@@ -72,7 +75,7 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t operator/(const Vec3_t& v) const {
+	CS2_FORCEINLINE Vec3_t operator/(const Vec3_t& v) const {
 		return {
 			x / v.x,
 			y / v.y,
@@ -80,35 +83,35 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t& operator+=(const Vec3_t& v) {
+	CS2_FORCEINLINE Vec3_t& operator+=(const Vec3_t& v) {
 		x += v.x;
 		y += v.y;
 		z += v.z;
 		return *this;
 	}
 
-	__forceinline Vec3_t& operator-=(const Vec3_t& v) {
+	CS2_FORCEINLINE Vec3_t& operator-=(const Vec3_t& v) {
 		x -= v.x;
 		y -= v.y;
 		z -= v.z;
 		return *this;
 	}
 
-	__forceinline Vec3_t& operator*=(const Vec3_t& v) {
+	CS2_FORCEINLINE Vec3_t& operator*=(const Vec3_t& v) {
 		x *= v.x;
 		y *= v.y;
 		z *= v.z;
 		return *this;
 	}
 
-	__forceinline Vec3_t& operator/=(const Vec3_t& v) {
+	CS2_FORCEINLINE Vec3_t& operator/=(const Vec3_t& v) {
 		x /= v.x;
 		y /= v.y;
 		z /= v.z;
 		return *this;
 	}
 
-	__forceinline Vec3_t operator+(float f) const {
+	CS2_FORCEINLINE Vec3_t operator+(float f) const {
 		return {
 			x + f,
 			y + f,
@@ -116,7 +119,7 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t operator-(float f) const {
+	CS2_FORCEINLINE Vec3_t operator-(float f) const {
 		return {
 			x - f,
 			y - f,
@@ -124,7 +127,7 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t operator*(float f) const {
+	CS2_FORCEINLINE Vec3_t operator*(float f) const {
 		return {
 			x * f,
 			y * f,
@@ -132,7 +135,7 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t operator/(float f) const {
+	CS2_FORCEINLINE Vec3_t operator/(float f) const {
 		return {
 			x / f,
 			y / f,
@@ -140,67 +143,67 @@ public:
 		};
 	}
 
-	__forceinline Vec3_t& operator+=(float f) {
+	CS2_FORCEINLINE Vec3_t& operator+=(float f) {
 		x += f;
 		y += f;
 		z += f;
 		return *this;
 	}
 
-	__forceinline Vec3_t& operator-=(float f) {
+	CS2_FORCEINLINE Vec3_t& operator-=(float f) {
 		x -= f;
 		y -= f;
 		z -= f;
 		return *this;
 	}
 
-	__forceinline Vec3_t& operator*=(float f) {
+	CS2_FORCEINLINE Vec3_t& operator*=(float f) {
 		x *= f;
 		y *= f;
 		z *= f;
 		return *this;
 	}
 
-	__forceinline Vec3_t& operator/=(float f) {
+	CS2_FORCEINLINE Vec3_t& operator/=(float f) {
 		x /= f;
 		y /= f;
 		z /= f;
 		return *this;
 	}
 
-	__forceinline void clear() {
+	CS2_FORCEINLINE void clear() {
 		x = y = z = 0.f;
 	}
 
-	__forceinline float length_sqr() const {
+	CS2_FORCEINLINE float length_sqr() const {
 		return ((x * x) + (y * y) + (z * z));
 	}
 
-	__forceinline float length_2d_sqr() const {
+	CS2_FORCEINLINE float length_2d_sqr() const {
 		return ((x * x) + (y * y));
 	}
 
-	__forceinline float length() const {
+	CS2_FORCEINLINE float length() const {
 		return std::sqrt(length_sqr());
 	}
 
-	__forceinline float length_2d() const {
+	CS2_FORCEINLINE float length_2d() const {
 		return std::sqrt(length_2d_sqr());
 	}
 
-	__forceinline float dot(const Vec3_t& v) const {
+	CS2_FORCEINLINE float dot(const Vec3_t& v) const {
 		return (x * v.x + y * v.y + z * v.z);
 	}
 
-	__forceinline float dot(float* v) const {
+	CS2_FORCEINLINE float dot(float* v) const {
 		return (x * v[0] + y * v[1] + z * v[2]);
 	}
 
-	constexpr const bool zero() const noexcept {
+	constexpr bool zero() const noexcept {
 		return x == 0.f && y == 0.f && z == 0.f;
 	}
 
-	__forceinline Vec3_t cross(const Vec3_t& v) const {
+	CS2_FORCEINLINE Vec3_t cross(const Vec3_t& v) const {
 		return {
 			(y * v.z) - (z * v.y),
 			(z * v.x) - (x * v.z),
@@ -208,7 +211,7 @@ public:
 		};
 	}
 
-	__forceinline float dist_to(const Vec3_t& vOther) const {
+	CS2_FORCEINLINE float dist_to(const Vec3_t& vOther) const {
 		Vec3_t delta;
 
 		delta.x = x - vOther.x;
@@ -218,7 +221,7 @@ public:
 		return delta.length_2d();
 	}
 
-	__forceinline float dist_to_3d(const Vec3_t& vOther) const {
+	CS2_FORCEINLINE float dist_to_3d(const Vec3_t& vOther) const {
 		Vec3_t delta;
 
 		delta.x = x - vOther.x;
@@ -236,7 +239,7 @@ public:
 		};
 	}
 
-	__forceinline float normalize() {
+	CS2_FORCEINLINE float normalize() {
 		float len = length();
 
 		(*this) /= (length() + std::numeric_limits<float>::epsilon());
@@ -244,7 +247,7 @@ public:
 		return len;
 	}
 
-	__forceinline Vec3_t normalized() const {
+	CS2_FORCEINLINE Vec3_t normalized() const {
 		auto vec = *this;
 
 		vec.normalize();

@@ -3,8 +3,24 @@
 #include "../mem/signature_scanner.hpp"
 #include "cache/entity_cache.hpp"
 
+using namespace std::chrono_literals;
+
+namespace
+{
+    constexpr int kMaxAttempts = 10;
+    constexpr auto kAttemptDelay = 5s;
+}
+
 bool Engine::Init() {
     return GetInstance().InitImpl();
+}
+
+void Engine::Shutdown() {
+    GetInstance().ShutdownImpl();
+}
+
+bool Engine::Running() {
+    return GetInstance().running.load();
 }
 
 ProcessModule Engine::GetClient() {
@@ -37,29 +53,60 @@ bool Engine::InitImpl() {
         return false;
     }
 
-    std::thread(&Engine::Thread, this).detach();
+    running = true;
+    worker = std::thread(&Engine::Thread, this);
 
     LOGF(INFO, "Successfully initialized engine...");
     return true;
 }
 
-void Engine::Thread() {
-    
-    
+void Engine::ShutdownImpl() {
+    running = false;
 
-    while (true) {
-        auto start = steady_clock::now();
+    if (worker.joinable())
+        worker.join();
+
+    Cache::Reset();
+
+    if (process)
+        process->Close();
+}
+
+void Engine::Thread() {
+    // A single tick rate drives the cache so the loop never busy-spins.
+    const auto interval = std::chrono::milliseconds(cfg::settings::free_cpu ? cfg::settings::cache_refresh_ms : 0);
+
+    while (running.load()) {
+        const auto start = std::chrono::steady_clock::now();
+
+        // Stop cleanly when the game is closed instead of reading a dead handle.
+        if (!process || !process->handle_ || WaitForSingleObject(process->handle_, 0) != WAIT_TIMEOUT) {
+            LOGF(INFO, "Game process is gone - stopping the engine thread");
+            running = false;
+            break;
+        }
 
         Cache::Refresh();
 
-        if (cfg::settings::free_cpu)
-            std::this_thread::sleep_until(start + 1ms);
+        if (interval.count() > 0) {
+            const auto elapsed = std::chrono::steady_clock::now() - start;
+            if (elapsed < interval)
+                std::this_thread::sleep_for(interval - elapsed);
+        }
+        else {
+            std::this_thread::yield();
+        }
     }
 }
 
 bool Engine::AwaitProcess() {
-    if (!process || process->handle_) 
+    if (!process)
         return false;
+
+    if (process->handle_)
+        return true;
+
+    LOGF(INFO, "Waiting up to 50s for the game to open...");
 
     do {
         if (process->AttachProcess("cs2.exe"))
@@ -70,26 +117,20 @@ bool Engine::AwaitProcess() {
             return false;
         }
 
-        static int attempts = 0;
-
-        if (!attempts)
-            LOGF(INFO, "Waiting 50s for the game to open...");
-
-        if (attempts > 10)
+        if (++process_attempts > kMaxAttempts)
             return false;
-        attempts++;
 
-        std::this_thread::sleep_for(5s);
+        std::this_thread::sleep_for(kAttemptDelay);
     } while (true);
 
     return true;
 }
 
 bool Engine::AwaitModules() {
-    if (!process || !process->handle_) 
+    if (!process || !process->handle_)
         return false;
 
-    LOGF(INFO, "Waiting for the game to open...");
+    LOGF(INFO, "Waiting for the game modules...");
 
     do {
         this->client = process->GetModule("client.dll");
@@ -98,12 +139,10 @@ bool Engine::AwaitModules() {
         if (this->client.base && this->engine.base)
             break;
 
-        static int attempts = 0;
-        if (attempts > 10)
+        if (++module_attempts > kMaxAttempts)
             return false;
-        attempts++;
 
-        std::this_thread::sleep_for(5s);
+        std::this_thread::sleep_for(kAttemptDelay);
     } while (true);
 
     return true;
