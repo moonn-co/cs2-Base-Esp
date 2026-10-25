@@ -25,6 +25,9 @@ This project does not guarantee protection against detection or bans. Use it at 
 Open `Build.sln`, select `Release | x64` and build. Run the produced executable while `cs2.exe` is already running
 (the loader waits up to 50 s for the process and its modules).
 
+The same build runs in CI: `.github/workflows/build.yml` compiles `Release | x64` on `windows-latest` (Visual Studio
+2026 + toolset `v145`) and uploads `cs2-external-esp.exe` / `.pdb` as a workflow artifact. Status: green, 0 warnings.
+
 ### Runtime
 
 * Everything is drawn on a click-through, top-most layered overlay window that follows the game window.

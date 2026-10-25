@@ -98,5 +98,9 @@ matching, instead of silently drawing nothing.
   (Win32/D3D11 headers stubbed, since the sandbox is Linux) — no errors, warnings cleaned up.
 * The memory, game, cache and ESP-rendering units were linked together with ImGui and a small harness that exercises
   `view_matrix_t::wts`, `Vec2_t`/`Vec3_t` operators and `color_t` conversions.
-* A real `MSVC` build has **not** been run: it needs Windows and the `v145` toolset. Offsets and signatures are
-  unchanged, so runtime behaviour against `cs2.exe` matches the original build.
+* **A real MSVC build is now green**: GitHub Actions `windows-latest` (Windows Server 2025 + Visual Studio 2026,
+  MSVC 14.51 / toolset `v145`) compiles `Build.sln` in `Release|x64` with **0 warnings** and produces
+  `cs2-external-esp.exe` (PE32+, 729 KB). The first CI run failed and the workflow caught a MinGW-only assumption:
+  `NTSTATUS` is declared in `<winternl.h>`, not `<Windows.h>`, so the `NtReadVirtualMemory` typedef now uses plain
+  `long` / `unsigned long` types (commit "Fix MSVC build: NTSTATUS is not declared by <Windows.h>").
+* Artifacts (`exe` + `pdb`) are attached to every successful run of the `build` workflow.
