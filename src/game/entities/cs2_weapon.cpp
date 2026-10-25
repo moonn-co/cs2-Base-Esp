@@ -12,11 +12,16 @@ bool Weapon::Update() {
 	if (!entity_list || slot_index <= 0)
 		return false;
 
-	uintptr_t bucket_ptr = p->read<uintptr_t>(entity_list + 0x10 + 0x8 * ((slot_index & 0x7FFF) >> 9));
+	const auto handle = static_cast<uint32_t>(slot_index);
+
+	uintptr_t bucket_ptr = p->read<uintptr_t>(
+		entity_list + offsets::list::chunks_base +
+		0x8 * ((handle & offsets::list::handle_index_mask) >> offsets::list::chunk_shift)
+	);
 	if (!bucket_ptr)
 		return false;
 
-	uintptr_t weapon_ptr = p->read<uintptr_t>(bucket_ptr + 0x70 * (slot_index & 0x1FF));
+	uintptr_t weapon_ptr = p->read<uintptr_t>(bucket_ptr + offsets::list::chunk_stride * (handle & offsets::list::entry_mask));
 	if (!weapon_ptr)
 		return false;
 

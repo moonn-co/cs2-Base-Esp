@@ -63,6 +63,35 @@ original code without changing what the cheat does: it stays an external, read-o
   `INVALID_HANDLE_VALUE` checks after `CreateToolhelp32Snapshot`, `#include` order, comments explaining the
   non-obvious offsets and magic numbers.
 
+## Offsets refresh (dump of 2026-10-23)
+
+Struct offsets were stale (they matched an early-2024 client build) and have been replaced with the values from the
+public schema dump [`a2x/cs2-dumper`](https://github.com/a2x/cs2-dumper):
+
+| Field | Old | New |
+| --- | --- | --- |
+| `controller::m_bIsLocalPlayerController` | `0x788` | `0x790` |
+| `pawn::m_iTeamNum` | `0x3EB` | `0x3E7` |
+| `pawn::m_pWeaponServices` | `0x11E0` | `0x12F0` |
+| `pawn::m_AttributeManager` | `0x1180` | `0x1290` |
+| `pawn::m_vOldOrigin` | `0x1390` | `0x14A4` |
+| `bone::m_modelState` | `0x150` | `0x140` |
+
+Unchanged and re-verified against the same dump: `m_hPawn` (`0x6BC`), `m_iHealth` (`0x34C`), `m_pGameSceneNode`
+(`0x330`), `m_hActiveWeapon` (`0x60`), `m_Item` (`0x50`), `m_iItemDefinitionIndex` (`0x1BA`).
+
+Magic numbers that used to be duplicated in `cs2_player.cpp` / `cs2_weapon.cpp` are now named constants next to the
+table they belong to, so a future layout change is a one-line edit:
+
+* `offsets::list::chunks_base` (`0x10`), `chunk_stride` (`0x70`), `handle_index_mask` (`0x7FFF`), `chunk_shift` (9),
+  `entry_mask` (`0x1FF`) — CHandle → entity chunk resolution;
+* `offsets::bone::m_pBoneArray` (`0x80`) — bone-array pointer inside `CModelState` (not part of the networked schema,
+  so the dumper does not list it; it has stayed at `+0x80` from `m_modelState`).
+
+Still unverified without a live client: the four byte signatures, the `0x70` entity-slot stride and the `+0x80`
+bone-array offset. `Dumper::Init()` fails loudly with "signature scan failed - outdated pattern" if a pattern stops
+matching, instead of silently drawing nothing.
+
 ## Verification
 
 * Every translation unit was compiled with `-std=c++20 -Wall -Wextra` against the real Dear ImGui 1.92.5 sources

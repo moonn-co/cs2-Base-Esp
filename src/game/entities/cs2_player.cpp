@@ -49,7 +49,7 @@ bool Player::GetController() {
 
     // The old code dereferenced list_entry unconditionally, so every call on an
     // uninitialised Player() read from a near-null address.
-    this->controller = p->read<uintptr_t>(list_entry + (index + 1) * 0x70);
+    this->controller = p->read<uintptr_t>(list_entry + (index + 1) * offsets::list::chunk_stride);
 
     return this->controller != 0;
 }
@@ -64,12 +64,17 @@ bool Player::GetPawn() {
 
     this->pawn_controller_addr = entity_pawn_address;
 
-    auto entity_pawn_list_entry = p->read<uintptr_t>(this->entity_list + 0x10 + 0x8 * ((entity_pawn_address & 0x7FFF) >> 9));
+    auto entity_pawn_list_entry = p->read<uintptr_t>(
+        this->entity_list + offsets::list::chunks_base +
+        0x8 * ((entity_pawn_address & offsets::list::handle_index_mask) >> offsets::list::chunk_shift)
+    );
 
     if (!entity_pawn_list_entry)
         return false;
 
-    this->pawn = p->read<uintptr_t>(entity_pawn_list_entry + 0x70 * (entity_pawn_address & 0x1FF));
+    this->pawn = p->read<uintptr_t>(
+        entity_pawn_list_entry + offsets::list::chunk_stride * (entity_pawn_address & offsets::list::entry_mask)
+    );
 
     return this->pawn != 0;
 }
@@ -127,7 +132,7 @@ bool Player::UpdateSkeleton() {
     if (!game_scene)
         return false;
 
-    auto bone_array = p->read<uintptr_t>(game_scene + (offsets::bone::m_modelState + 0x80));
+    auto bone_array = p->read<uintptr_t>(game_scene + offsets::bone::m_modelState + offsets::bone::m_pBoneArray);
 
     if (!bone_array)
         return false;

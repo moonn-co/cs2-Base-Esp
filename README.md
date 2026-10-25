@@ -50,4 +50,7 @@ src/
 * The offsets in `src/mem/cs2_memory_offsets.hpp` are still game-version dependent: the four scanned signatures
   (`viewMatrix`, `entityList`, `localPlayerController`, `buildNumber`) are re-resolved on every start, but the
   struct member offsets (`m_iHealth`, `m_vOldOrigin`, `m_pGameSceneNode`, ...) must be updated after a game update.
+  The current values come from the public schema dump generated on **2026-10-23**
+  ([`a2x/cs2-dumper`](https://github.com/a2x/cs2-dumper)); the signature patterns themselves date from the original
+  repository and have **not** been re-verified against a live client.
 * If a signature stops matching, start-up fails loudly in the log instead of drawing nothing.
