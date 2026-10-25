@@ -3,6 +3,13 @@
 
 #include <vector>
 #include <cmath>
+
+// Keep <Windows.h> from defining the min/max macros: this header is pulled in
+// before shared_definitions.hpp in several translation units.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <string>
@@ -10,7 +17,17 @@
 #include <Psapi.h>
 #include "utils/debug_logger.hpp"
 
-typedef NTSTATUS(WINAPI* pNtReadVirtualMemory)(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToRead, PULONG NumberOfBytesRead);
+// NtReadVirtualMemory returns NTSTATUS (a LONG) and fills a ULONG.
+// The types are spelled out explicitly on purpose: NTSTATUS is declared in
+// <winternl.h>, which <Windows.h> does not pull in, so the previous typedef
+// failed to compile with MSVC (C4430/C2059) even though MinGW accepted it.
+typedef long(WINAPI* pNtReadVirtualMemory)(
+	void* ProcessHandle,
+	void* BaseAddress,
+	void* Buffer,
+	unsigned long NumberOfBytesToRead,
+	unsigned long* NumberOfBytesRead
+);
 
 // The project is read-only by design: only the read primitive is resolved here.
 // NtWriteVirtualMemory is intentionally not imported anymore.
@@ -81,16 +98,16 @@ public:
 		if (!memory.valid())
 			return false;
 
-		ULONG bytes_read = 0;
-		NTSTATUS status = memory.pfnNtReadVirtualMemory(
+		unsigned long bytes_read = 0;
+		const long status = memory.pfnNtReadVirtualMemory(
 			handle_,
 			reinterpret_cast<PVOID>(address),
 			buffer,
-			static_cast<ULONG>(size),
+			static_cast<unsigned long>(size),
 			&bytes_read
 		);
 
-		return status == 0 && bytes_read == static_cast<ULONG>(size);
+		return status == 0 && bytes_read == static_cast<unsigned long>(size);
 	}
 
 	template<class T>
