@@ -15,12 +15,15 @@ int main()
 
     if (!Engine::Init()) {
         LOGF(FATAL, "Engine initialization failed - terminating application");
-        goto exit;
+        LogHelper::Destroy();
+        return 1;
     }
 
     if (!Renderer::Init()) {
         LOGF(FATAL, "Renderer initialization failed - terminating application");
-        goto exit;
+        Engine::Shutdown();
+        LogHelper::Destroy();
+        return 1;
     }
 
     LOGF(INFO, "ESP initialized - Box, Skeleton, Health, Weapon Name activated");
@@ -28,8 +31,11 @@ int main()
 
     Renderer::Thread();
 
-exit:
     LOGF(INFO, "CS2 ESP Simple - Shutting down");
+
+    // Leave no dangling handle / worker thread behind when the overlay closes.
+    Engine::Shutdown();
+
     LogHelper::Destroy();
     return 0;
 }

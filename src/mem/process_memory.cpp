@@ -3,6 +3,9 @@
 
 uint32_t pProcess::FindProcessIdByProcessName(const char* ProcessName)
 {
+	if (!ProcessName || !*ProcessName)
+		return 0;
+
 	std::wstring wideProcessName;
 	int wideCharLength = MultiByteToWideChar(CP_UTF8, 0, ProcessName, -1, nullptr, 0);
 	if (wideCharLength > 0)
@@ -11,7 +14,13 @@ uint32_t pProcess::FindProcessIdByProcessName(const char* ProcessName)
 		MultiByteToWideChar(CP_UTF8, 0, ProcessName, -1, &wideProcessName[0], wideCharLength);
 	}
 
-	HANDLE hPID = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+	HANDLE hPID = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (hPID == INVALID_HANDLE_VALUE)
+	{
+		LOGF(FATAL, "Failed to create a process snapshot");
+		return 0;
+	}
+
 	PROCESSENTRY32W process_entry_{ };
 	process_entry_.dwSize = sizeof(PROCESSENTRY32W);
 
@@ -53,13 +62,15 @@ bool pProcess::AttachProcess(const char* process_name)
 	auto target_pid = FindProcessIdByProcessName(process_name);
 
 	if (!target_pid) {
-		LOGF(FATAL, "Process not found");
+		LOGF(INFO, "Process not found");
 		return false;
 	}
 
 	pid_ = target_pid;
 
-	handle_ = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE, FALSE, pid_);
+	// Read-only access. The project never writes into the target process, so
+	// PROCESS_VM_WRITE / PROCESS_VM_OPERATION are not requested anymore.
+	handle_ = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid_);
 
 	if (!handle_) {
 		LOGF(FATAL, "Failed to open process handle");
@@ -85,6 +96,9 @@ bool pProcess::UpdateHWND()
 
 ProcessModule pProcess::GetModule(const char* lModule)
 {
+	if (!lModule || !*lModule || !pid_)
+		return { 0, 0 };
+
 	std::wstring wideModule;
 	int wideCharLength = MultiByteToWideChar(CP_UTF8, 0, lModule, -1, nullptr, 0);
 	if (wideCharLength > 0)
@@ -93,96 +107,83 @@ ProcessModule pProcess::GetModule(const char* lModule)
 		MultiByteToWideChar(CP_UTF8, 0, lModule, -1, &wideModule[0], wideCharLength);
 	}
 
-	HANDLE handle_module = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid_);
+	HANDLE handle_module = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid_);
+	if (handle_module == INVALID_HANDLE_VALUE)
+		return { 0, 0 };
+
+	ProcessModule result{ 0, 0 };
+
 	MODULEENTRY32W module_entry_{};
 	module_entry_.dwSize = sizeof(MODULEENTRY32W);
 
-	do
+	// Module32FirstW must be called once before Module32NextW, otherwise the
+	// first (zeroed) entry is compared and the API sequence is invalid.
+	if (Module32FirstW(handle_module, &module_entry_))
 	{
-		if (!wcscmp(module_entry_.szModule, wideModule.c_str()))
+		do
 		{
-			CloseHandle(handle_module);
-			return { (DWORD_PTR)module_entry_.modBaseAddr, module_entry_.dwSize };
-		}
-	} while (Module32NextW(handle_module, &module_entry_));
+			if (!wcscmp(module_entry_.szModule, wideModule.c_str()))
+			{
+				result = { reinterpret_cast<uintptr_t>(module_entry_.modBaseAddr), static_cast<uintptr_t>(module_entry_.modBaseSize) };
+				break;
+			}
+		} while (Module32NextW(handle_module, &module_entry_));
+	}
 
 	CloseHandle(handle_module);
-	return { 0, 0 };
-}
-
-LPVOID pProcess::Allocate(size_t size_in_bytes)
-{
-	return VirtualAllocEx(this->handle_, NULL, size_in_bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	return result;
 }
 
 uintptr_t pProcess::FindSignature(std::vector<uint8_t> signature)
 {
-	std::unique_ptr<uint8_t[]> data;
-	data = std::make_unique<uint8_t[]>(this->base_client_.size);
-
-	if (!ReadProcessMemory(this->handle_, (void*)(this->base_client_.base), data.get(), this->base_client_.size, NULL)) {
-		return 0x0;
-	}
-
-	for (uintptr_t i = 0; i < this->base_client_.size; i++)
-	{
-		for (uintptr_t j = 0; j < signature.size(); j++)
-		{
-			if (signature.at(j) == 0x00)
-				continue;
-
-			if (*reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(&data[i + j])) == signature.at(j))
-			{
-				if (j == signature.size() - 1)
-					return this->base_client_.base + i;
-				continue;
-			}
-			break;
-		}
-	}
-	return 0x0;
+	return FindSignature(base_client_, signature);
 }
 
 uintptr_t pProcess::FindSignature(ProcessModule target_module, std::vector<uint8_t> signature)
 {
-	std::unique_ptr<uint8_t[]> data;
-	data = std::make_unique<uint8_t[]>(0xFFFFFFF);
+	if (!handle_ || !target_module.base || !target_module.size || signature.empty())
+		return 0x0;
 
-	if (!ReadProcessMemory(this->handle_, (void*)(target_module.base), data.get(), 0xFFFFFFF, NULL)) {
-		return NULL;
-	}
+	if (signature.size() > target_module.size)
+		return 0x0;
 
-	for (uintptr_t i = 0; i < 0xFFFFFFF; i++)
+	std::vector<uint8_t> data(target_module.size);
+
+	if (!read_raw(target_module.base, data.data(), data.size()))
+		return 0x0;
+
+	// A zero byte in the pattern is treated as a wildcard.
+	const size_t last_start = data.size() - signature.size();
+
+	for (size_t i = 0; i <= last_start; i++)
 	{
-		for (uintptr_t j = 0; j < signature.size(); j++)
+		bool found = true;
+
+		for (size_t j = 0; j < signature.size(); j++)
 		{
-			if (signature.at(j) == 0x00)
-				continue;
-
-			if (*reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(&data[i + j])) == signature.at(j))
+			const uint8_t expected = signature[j];
+			if (expected != 0x00 && data[i + j] != expected)
 			{
-				if (j == signature.size() - 1)
-					return this->base_client_.base + i;
-				continue;
+				found = false;
+				break;
 			}
-			break;
 		}
+
+		if (found)
+			return target_module.base + i;
 	}
+
 	return 0x0;
-}
-
-uintptr_t pProcess::FindCodeCave(uint32_t length_in_bytes)
-{
-	std::vector<uint8_t> cave_pattern = {};
-
-	for (uint32_t i = 0; i < length_in_bytes; i++) {
-		cave_pattern.push_back(0x00);
-	}
-
-	return FindSignature(cave_pattern);
 }
 
 void pProcess::Close()
 {
+	if (!handle_)
+		return;
+
 	CloseHandle(handle_);
+	handle_ = nullptr;
+	pid_ = 0;
+	hwnd_ = nullptr;
+	base_client_ = { 0, 0 };
 }

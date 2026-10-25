@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include "../../libs/imgui/imgui.h"
 
 class Vec2_t {
 public:
@@ -14,11 +15,14 @@ public:
 	operator float* () {
 		return &x;
 	}
+	operator const float* () const {
+		return &x;
+	}
 	bool operator==(const Vec2_t& o) const {
 		return x == o.x && y == o.y;
 	}
 	bool operator==(const float o) const {
-		return x == y && y == o;
+		return x == o && y == o;
 	}
 	bool operator!=(const Vec2_t& o) const {
 		return !(*this == o);
@@ -144,7 +148,7 @@ public:
 		return *this == 0.f;
 	}
 
-	float dist_to(const Vec2_t& pos) {
+	float dist_to(const Vec2_t& pos) const {
 		return sqrtf(powf(pos.x - x, 2) + powf(pos.y - y, 2));
 	}
 

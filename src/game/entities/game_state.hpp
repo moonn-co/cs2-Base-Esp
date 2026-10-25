@@ -1,20 +1,19 @@
 #pragma once
 
+#include <cstdint>
 #include "../types/view_matrix.hpp"
 
 class Game {
 public:
-    Game() {};
+    Game() = default;
 
     bool Update();
     bool UpdateMatrix();
     bool UpdateEntityList();
 
 public:
-    view_matrix_t view_matrix;
+    view_matrix_t view_matrix{};
 
-    uintptr_t entity_list;
-    uintptr_t list_entry;
-private:
-    uintptr_t address;
+    uintptr_t entity_list = 0;
+    uintptr_t list_entry = 0;
 };

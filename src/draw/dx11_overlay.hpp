@@ -34,11 +34,11 @@ public:
 	static WNDCLASSEX wc;
 
 	static bool IsWindowInForeground(HWND window) { return GetForegroundWindow() == window; }
-	static bool BringToForeground(HWND window) { return SetForegroundWindow(window); }
+	static bool BringToForeground(HWND window) { return SetForegroundWindow(window) != 0; }
 
 	static void SetTopMost(HWND window, bool up_down = true);
 	static void SetClickthrough(HWND window, bool clickthrough = true);
-	static void SetBounds(HWND window, RECT bounds);
+	static void SetBounds(HWND window, const RECT& new_bounds);
 	static bool SetAffinity(HWND window, WindowAffinity afi);
 	static void SetForeground(HWND window);
 	static void SetVSync(bool enable = false);
@@ -49,7 +49,6 @@ public:
 	static IDXGISwapChain* swap_chain;
 	static ID3D11RenderTargetView* render_targetview;
 
-	inline static RECT bounds;
+	inline static RECT bounds{};
 	inline static bool shouldRun = true;
-
 };
